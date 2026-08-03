@@ -5,11 +5,17 @@ import sys
 # from pptx.util import Inches, Pt
 # from pptx.enum.text import PP_ALIGN
 # from pptx.dml.color import RGBColor
+# pyrefly: ignore [missing-import]
 from docx import Document
+# pyrefly: ignore [missing-import]
 from docx.shared import Inches as DocxInches, Pt as DocxPt
+# pyrefly: ignore [missing-import]
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+# pyrefly: ignore [missing-import]
 from docx.oxml import OxmlElement
+# pyrefly: ignore [missing-import]
 from docx.oxml.ns import qn
+# pyrefly: ignore [missing-import]
 from docx.shared import RGBColor
 
 class FileExporter:
@@ -51,13 +57,20 @@ class FileExporter:
 
     @staticmethod
     def format_value(val, col_name):
-        if pd.api.types.is_datetime64_any_dtype(pd.Series([val])):
+        if hasattr(val, 'strftime'):
             return val.strftime('%d/%m/%Y')
+        if isinstance(val, str):
+            try:
+                dt = pd.to_datetime(val)
+                if not pd.isna(dt):
+                    return dt.strftime('%d/%m/%Y')
+            except Exception:
+                pass
         if 'ADS' in str(col_name):
             return f"{int(val)}"
-        if any(k in str(col_name) for k in ['ADR', 'Receita']):
+        if any(k in str(col_name) for k in ['ADR', 'Receita', 'RevPAR']):
             return f"R$ {val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
-        if '%' in str(col_name):
+        if '%' in str(col_name) or 'Ocupação' in str(col_name):
             return f"{val:.2f}%"
         if 'Reservas' in str(col_name):
             return f"{int(val)}"
@@ -89,19 +102,19 @@ class FileExporter:
     def export_to_docx(self, dataframes, summaries, evol_df, closing_df, charts, output_path, property_name="[NOME DA PROPRIEDADE]", reference=""):
         doc = Document()
         
-        # --- Global Style (Inter Light) ---
+        # --- Global Style (Inter) ---
         style = doc.styles['Normal']
         font = style.font
-        font.name = 'Inter Light'
+        font.name = 'Inter'
         font.size = DocxPt(11)
 
-        # --- Heading Styles (Inter Light, Size 14, Bold, Centered) ---
+        # --- Heading Styles (Poppins, Size 14, Bold, Centered) ---
         for level in range(1, 3):
             h_style = doc.styles[f'Heading {level}']
-            h_style.font.name = 'Inter Light'
+            h_style.font.name = 'Poppins'
             h_style.font.size = DocxPt(14)
             h_style.font.bold = True
-            h_style.font.color.rgb = None  # Mantém cor padrão (geralmente preto ou azul escuro)
+            h_style.font.color.rgb = RGBColor(0, 81, 81)  # Midnight Green #005151
             h_style.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
         # --- Footer Configuration ---
@@ -113,7 +126,7 @@ class FileExporter:
         p_first = f_first.paragraphs[0]
         p_first.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run_f1 = p_first.add_run('Revinn Estratégias © Copyright – Todos os direitos reservados.')
-        run_f1.font.name = 'Inter Light'
+        run_f1.font.name = 'Inter'
         run_f1.font.size = DocxPt(9)
 
         # Footer for Page 2 onwards - Copyright + Page Number
@@ -121,11 +134,11 @@ class FileExporter:
         p_rest = f_rest.paragraphs[0]
         p_rest.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run_f2 = p_rest.add_run('Revinn Estratégias © Copyright – Todos os direitos reservados. | Página ')
-        run_f2.font.name = 'Inter Light'
+        run_f2.font.name = 'Inter'
         run_f2.font.size = DocxPt(9)
         
         run_page = p_rest.add_run()
-        run_page.font.name = 'Inter Light'
+        run_page.font.name = 'Inter'
         run_page.font.size = DocxPt(9)
         self._add_page_number(run_page)
 
@@ -143,13 +156,13 @@ class FileExporter:
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = p.add_run('Revinn Estratégias')
-        run.font.name = 'Inter Light'
+        run.font.name = 'Poppins'
         run.font.size = DocxPt(14)
 
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = p.add_run('Departamento de Consultoria')
-        run.font.name = 'Inter Light'
+        run.font.name = 'Inter'
         run.font.size = DocxPt(11)
 
         for _ in range(3): doc.add_paragraph() # Reduzido de 7 para 3
@@ -159,7 +172,7 @@ class FileExporter:
         # Limpa o nome removendo underscores
         clean_name = property_name.replace('_', ' ').upper()
         run = p.add_run(clean_name)
-        run.font.name = 'Inter Light'
+        run.font.name = 'Poppins'
         run.font.size = DocxPt(18)
         run.font.bold = True
 
@@ -169,7 +182,7 @@ class FileExporter:
         if reference:
             subtitle += f" - {reference}"
         run = p.add_run(subtitle)
-        run.font.name = 'Inter Light'
+        run.font.name = 'Poppins'
         run.font.size = DocxPt(14)
 
         # Push São Paulo / 2026 to bottom
@@ -178,7 +191,7 @@ class FileExporter:
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = p.add_run('São Paulo\n2026')
-        run.font.name = 'Inter Light'
+        run.font.name = 'Inter'
         run.font.size = DocxPt(11)
 
         doc.add_page_break()
@@ -201,7 +214,7 @@ class FileExporter:
             p = doc.add_paragraph()
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT
             run = p.add_run(f"RN's: {nights}; Renda Total {revenue_str}")
-            run.font.name = 'Inter Light'
+            run.font.name = 'Inter'
             run.font.bold = True
             run.font.size = DocxPt(9)
             
@@ -251,14 +264,14 @@ class FileExporter:
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = p.add_run('Revinn Estratégias')
-        run.font.name = 'Inter Light'
+        run.font.name = 'Poppins'
         run.font.size = DocxPt(14)
         run.font.bold = True
         
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = p.add_run('Consultoria e Estratégia Hoteleira')
-        run.font.name = 'Inter Light'
+        run.font.name = 'Inter'
         run.font.size = DocxPt(11)
         
         doc.save(output_path)
@@ -287,7 +300,7 @@ class FileExporter:
             self._set_cell_border(cell)
             for paragraph in cell.paragraphs:
                 for run in paragraph.runs:
-                    run.font.name = 'Inter Light'
+                    run.font.name = 'Poppins'
                     run.font.size = DocxPt(10)
                     run.font.color.rgb = RGBColor(255, 255, 255)
         
@@ -306,7 +319,7 @@ class FileExporter:
                 
                 for paragraph in cell.paragraphs:
                     for run in paragraph.runs:
-                        run.font.name = 'Inter Light'
+                        run.font.name = 'Inter'
                         run.font.size = DocxPt(9)
                         if j == 0:
                             run.font.color.rgb = RGBColor(255, 255, 255)
@@ -325,7 +338,7 @@ class FileExporter:
                 if j == 0: 
                     for p in last_row[0].paragraphs:
                         for run in p.runs: 
-                            run.font.name = 'Inter Light'
+                            run.font.name = 'Inter'
                             run.font.color.rgb = RGBColor(255, 255, 255)
                     continue
                 
@@ -355,7 +368,7 @@ class FileExporter:
             for j, cell in enumerate(last_row):
                 for paragraph in cell.paragraphs:
                     for run in paragraph.runs:
-                        run.font.name = 'Inter Light'
+                        run.font.name = 'Inter'
                         run.font.bold = True
                         run.font.size = DocxPt(9)
                         if j == 0:
@@ -378,7 +391,7 @@ class FileExporter:
             self._set_cell_border(cell)
             for p in cell.paragraphs:
                 for run in p.runs: 
-                    run.font.name = 'Inter Light'
+                    run.font.name = 'Poppins'
                     run.font.size = DocxPt(10)
                     run.font.color.rgb = RGBColor(255, 255, 255)
         
@@ -401,7 +414,7 @@ class FileExporter:
                 
                 for p in cell.paragraphs:
                     for run in p.runs: 
-                        run.font.name = 'Inter Light'
+                        run.font.name = 'Inter'
                         run.font.size = DocxPt(9)
                         if j == 0:
                             run.font.color.rgb = RGBColor(255, 255, 255)
@@ -409,14 +422,14 @@ class FileExporter:
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.LEFT
         run = p.add_run("* Nota: A Tabela de Fechamento Consolidado baseia-se na comparação do mesmo período (mês/dias equivalentes) entre o ano atual e o ano anterior (Year-over-Year).")
-        run.font.name = 'Inter Light'
+        run.font.name = 'Inter'
         run.font.italic = True
         run.font.size = DocxPt(8)
 
     def _add_evolution_docx_table(self, doc, df):
         heading = doc.add_heading("Detalhamento Diário YoY", level=2)
         
-        cols = ['Data', 'Tipo', 'Ocupação (%)', 'ADR (R$)', 'Receita (R$)']
+        cols = ['Data', 'Tipo', 'Ocupação (%)', 'ADR (R$)', 'RevPAR (R$)']
         table = doc.add_table(rows=1, cols=len(cols))
         self.set_table_autofit(table)
         for i, col in enumerate(cols): 
@@ -426,20 +439,20 @@ class FileExporter:
             self._set_cell_border(cell)
             for p in cell.paragraphs:
                 for run in p.runs: 
-                    run.font.name = 'Inter Light'
+                    run.font.name = 'Poppins'
                     run.font.size = DocxPt(10)
                     run.font.color.rgb = RGBColor(255, 255, 255)
         
         for i, (_, row) in enumerate(df.iterrows()):
             r1 = table.add_row().cells
-            r1[0].text, r1[1].text, r1[2].text = row['Data'].strftime('%d/%m/%Y'), "Ano Atual", f"{row['Ocupação Presente']:.2f}%"
+            r1[0].text, r1[1].text, r1[2].text = self.format_value(row['Data'], 'Data'), "Ano Atual", f"{row['Ocupação Presente']:.2f}%"
             r1[3].text = self.format_value(row['ADR Presente'], 'ADR')
-            r1[4].text = self.format_value(row['Receita Presente'], 'Receita')
+            r1[4].text = self.format_value(row['RevPAR Presente'], 'RevPAR')
             
             r2 = table.add_row().cells
-            r2[0].text, r2[1].text, r2[2].text = row['Data'].strftime('%d/%m/%Y'), "Ano Passado", f"{row['Ocupação Passado']:.2f}%"
+            r2[0].text, r2[1].text, r2[2].text = self.format_value(row['Data'], 'Data'), "Ano Passado", f"{row['Ocupação Passado']:.2f}%"
             r2[3].text = self.format_value(row['ADR Passado'], 'ADR')
-            r2[4].text = self.format_value(row['Receita Passado'], 'Receita')
+            r2[4].text = self.format_value(row['RevPAR Passado'], 'RevPAR')
 
             bg_color_pair = "E8E8E8" if i % 2 == 0 else "FFFFFF"
             
@@ -453,7 +466,7 @@ class FileExporter:
                     
                     for p in cell.paragraphs:
                         for run in p.runs: 
-                            run.font.name = 'Inter Light'
+                            run.font.name = 'Inter'
                             run.font.size = DocxPt(9)
                             if j == 0:
                                 run.font.color.rgb = RGBColor(255, 255, 255)
@@ -467,6 +480,10 @@ class FileExporter:
             return str(val)
 
     def export_to_pdf(self, dataframes, summaries, evol_df, closing_df, output_path, property_name="[NOME DA PROPRIEDADE]", reference="", additional_sections=None):
+        # Resolve logo.png URL
+        logo_path = os.path.abspath("logo.png")
+        logo_url = "file:///" + logo_path.replace("\\", "/") if os.path.exists(logo_path) else ""
+
         # 1. Configurar caminhos do DLL do GTK3 no Windows para evitar falhas do WeasyPrint
         if os.name == 'nt':
             possible_gtk_paths = [
@@ -507,8 +524,23 @@ class FileExporter:
         adr_var_class = "positive"
         
         revpar_val = "R$ 0,00"
-        revpar_var = "0,00%"
-        revpar_var_class = "positive"
+        # Função interna para montar o bloco de KPI no PDF
+        def make_kpi_card(label, pres_val_str, var_str, var_class, past_val_str=None):
+            past_html = ""
+            if past_val_str is not None:
+                past_html = f"""
+                <hr class="kpi-separator" />
+                <span class="kpi-past-label">Ano Anterior</span>
+                <p class="kpi-past-value">{past_val_str}</p>
+                """
+            return f"""
+            <div class="kpi-card">
+                <span class="kpi-label">{label}</span>
+                <p class="kpi-value">{pres_val_str}</p>
+                <span class="kpi-sub {var_class}">{var_str}</span>
+                {past_html}
+            </div>
+            """
 
         if closing_df is not None and not closing_df.empty:
             # Dados consolidados de fechamento do Pickup
@@ -522,17 +554,16 @@ class FileExporter:
             else:
                 receita_var = "0,00%"
                 receita_var_class = "positive"
+            past_rec_str = self.format_value(past_rec, 'Receita') if (past_rec is not None and past_rec > 0) else None
 
             pres_occ = closing_df['Ocupação Presente'].iloc[0]
             past_occ = closing_df['Ocupação Passado'].iloc[0]
             ocupacao_val = f"{pres_occ:.2f}%".replace('.', ',')
-            if past_occ != 0:
-                var = (pres_occ - past_occ) / past_occ * 100
-                ocupacao_var = f"{var:+.2f}%".replace('.', ',')
-                ocupacao_var_class = "positive" if var >= 0 else "negative"
-            else:
-                ocupacao_var = "0,00%"
-                ocupacao_var_class = "positive"
+            # Variação em pontos percentuais (p.p.)
+            var_pp = pres_occ - past_occ
+            ocupacao_var = f"{var_pp:+.2f}".replace('.', ',') + " p.p."
+            ocupacao_var_class = "positive" if var_pp >= 0 else "negative"
+            past_occ_str = f"{past_occ:.2f}%".replace('.', ',') if (past_occ is not None and past_occ > 0) else None
 
             pres_adr = closing_df['ADR Presente'].iloc[0]
             past_adr = closing_df['ADR Passado'].iloc[0]
@@ -544,10 +575,17 @@ class FileExporter:
             else:
                 adr_var = "0,00%"
                 adr_var_class = "positive"
+            past_adr_str = self.format_value(past_adr, 'ADR') if (past_adr is not None and past_adr > 0) else None
 
-            pres_rev = pres_occ * pres_adr / 100
-            past_rev = past_occ * past_adr / 100
-            revpar_val = self.format_value(pres_rev, 'ADR')
+            # Se existirem colunas específicas de RevPAR, usá-las diretamente
+            if 'RevPAR Presente' in closing_df.columns:
+                pres_rev = closing_df['RevPAR Presente'].iloc[0]
+                past_rev = closing_df['RevPAR Passado'].iloc[0]
+            else:
+                pres_rev = pres_occ * pres_adr / 100
+                past_rev = past_occ * past_adr / 100
+                
+            revpar_val = self.format_value(pres_rev, 'RevPAR')
             if past_rev != 0:
                 var = (pres_rev - past_rev) / past_rev * 100
                 revpar_var = f"{var:+.2f}%".replace('.', ',')
@@ -555,18 +593,34 @@ class FileExporter:
             else:
                 revpar_var = "0,00%"
                 revpar_var_class = "positive"
+            past_rev_str = self.format_value(past_rev, 'RevPAR') if (past_rev is not None and past_rev > 0) else None
         else:
             # Fallback para os dados de check-outs (CO)
+            receita_val = "R$ 0,00"
+            receita_var = "N/D"
+            receita_var_class = "positive"
+            past_rec_str = None
+            
+            ocupacao_val = "N/D"
+            ocupacao_var = "N/D"
+            ocupacao_var_class = "positive"
+            past_occ_str = None
+            
+            adr_val = "R$ 0,00"
+            adr_var = "N/D"
+            adr_var_class = "positive"
+            past_adr_str = None
+            
+            revpar_val = "N/D"
+            revpar_var = "N/D"
+            revpar_var_class = "positive"
+            past_rev_str = None
+            
             if summaries and len(summaries) > 0:
                 co_sum = summaries[0]
                 tot_rec = co_sum.get('total_receita', 0)
                 tot_nights = co_sum.get('total_noites', 0)
                 receita_val = self.format_value(tot_rec, 'Receita')
-                receita_var = "N/D"
-                receita_var_class = "positive"
-                
-                ocupacao_val = "N/D"
-                ocupacao_var = "N/D"
                 ocupacao_var_class = "positive"
                 
                 calc_adr = tot_rec / tot_nights if tot_nights > 0 else 0
@@ -577,6 +631,16 @@ class FileExporter:
                 revpar_val = "N/D"
                 revpar_var = "N/D"
                 revpar_var_class = "positive"
+
+        # Monta os cartões de KPIs dinamicamente
+        kpi_cards_html = f"""
+        <div class="kpi-container">
+            {make_kpi_card("Receita Líquida (YoY)", receita_val, receita_var, receita_var_class, past_rec_str)}
+            {make_kpi_card("Taxa de Ocupação (YoY)", ocupacao_val, ocupacao_var, ocupacao_var_class, past_occ_str)}
+            {make_kpi_card("Diária Média - ADR (YoY)", adr_val, adr_var, adr_var_class, past_adr_str)}
+            {make_kpi_card("RevPAR Consolidado (YoY)", revpar_val, revpar_var, revpar_var_class, past_rev_str)}
+        </div>
+        """
 
         # 3. Construir linhas das tabelas em HTML
         # Tabela 1: Desempenho por Categoria de Acomodação (Check-outs)
@@ -683,16 +747,24 @@ class FileExporter:
             for sec in additional_sections:
                 title = sec.get("title", "").strip()
                 desc = sec.get("description", "").strip()
-                img_path = sec.get("image_path", "").strip()
+                img_path_raw = sec.get("image_path", "").strip()
+                img_paths = [p.strip() for p in img_path_raw.split(";") if p.strip()]
+                key = sec.get("key", "").lower().strip()
+                
+                if "booking" in key:
+                    gallery_class = "booking-gallery"
+                elif "expedia" in key:
+                    gallery_class = "expedia-gallery"
+                else:
+                    gallery_class = "image-gallery"
                 
                 additional_sections_html += f"""
                 <div style="page-break-before: always;">
                     <div class="table-row header-container">
-                        <div class="table-cell" style="width: 50%;">
-                            <div class="brand-title">revinn</div>
-                            <div class="brand-subtitle">estratégias de receita</div>
+                        <div class="table-cell" style="width: 50%; vertical-align: middle;">
+                            <img src="{logo_url}" style="height: 100px; width: auto;" />
                         </div>
-                        <div class="table-cell doc-info" style="width: 50%;">
+                        <div class="table-cell doc-info" style="width: 50%; vertical-align: middle;">
                             <h1>{property_name}</h1>
                             <p>Lâmina de Performance Mensal &bull; {reference}</p>
                         </div>
@@ -707,22 +779,63 @@ class FileExporter:
                 if desc:
                     formatted_desc = desc.replace("\n", "<br>")
                     additional_sections_html += f"""
-                    <div style="font-size: 9.5pt; color: #2c3e50; line-height: 1.5; margin-bottom: 20px; text-align: justify; padding: 10px; background: #f8f9fa; border-left: 3px solid #008080; border: 1px solid #e2e8f0; border-left-width: 3px; border-left-color: #008080; border-radius: 0 4px 4px 0;">
+                    <div style="font-size: 9.5pt; color: #2c3e50; line-height: 1.5; margin-bottom: 20px; text-align: justify; padding: 10px; background: #f8f9fa; border-left: 3px solid #159F92; border: 1px solid #e2e8f0; border-left-width: 3px; border-left-color: #159F92; border-radius: 0 4px 4px 0; font-family: 'Inter', sans-serif;">
                         {formatted_desc}
                     </div>
                     """
                 
-                if img_path and os.path.exists(img_path):
-                    clean_path = os.path.abspath(img_path).replace("\\", "/")
-                    if not clean_path.startswith("/"):
-                        clean_path = "/" + clean_path
-                    file_url = f"file://{clean_path}"
-                    
-                    additional_sections_html += f"""
-                    <div style="text-align: center; margin-top: 15px; margin-bottom: 15px; page-break-inside: avoid;">
-                        <img src="{file_url}" style="max-width: 100%; max-height: 420px; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px; background: #ffffff;" />
-                    </div>
-                    """
+                if img_paths:
+                    if gallery_class == "booking-gallery":
+                        # Generate the simple but highly robust inline-block layout for Booking
+                        resolved_urls = []
+                        for img_p in img_paths:
+                            if os.path.exists(img_p):
+                                clean_path = os.path.abspath(img_p).replace("\\", "/")
+                                if not clean_path.startswith("/"):
+                                    clean_path = "/" + clean_path
+                                resolved_urls.append(f"file://{clean_path}")
+                        
+                        if len(resolved_urls) >= 1:
+                            img1 = resolved_urls[0]
+                            img2 = resolved_urls[1] if len(resolved_urls) > 1 else ""
+                            img3 = resolved_urls[2] if len(resolved_urls) > 2 else ""
+                            
+                            additional_sections_html += '\n<table class="booking-table-layout">'
+                            additional_sections_html += f'\n    <tr><td colspan="2" style="padding-bottom: 8px !important;"><img src="{img1}" class="gallery-img-booking-1" /></td></tr>'
+                            if img2 or img3:
+                                additional_sections_html += '\n    <tr>'
+                                if img2:
+                                    additional_sections_html += f'<td style="width: 70% !important; padding-right: 4px !important;"><img src="{img2}" class="gallery-img-booking-2" /></td>'
+                                if img3:
+                                    additional_sections_html += f'<td style="width: 30% !important; padding-left: 4px !important;"><img src="{img3}" class="gallery-img-booking-3" /></td>'
+                                additional_sections_html += '\n    </tr>'
+                            additional_sections_html += '\n</table>'
+                    else:
+                        additional_sections_html += f'\n<div class="{gallery_class}">'
+                        for idx, img_p in enumerate(img_paths):
+                            if os.path.exists(img_p):
+                                clean_path = os.path.abspath(img_p).replace("\\", "/")
+                                if not clean_path.startswith("/"):
+                                    clean_path = "/" + clean_path
+                                file_url = f"file://{clean_path}"
+                                
+                                width_style = ""
+                                if gallery_class == "image-gallery":
+                                    try:
+                                        # pyrefly: ignore [missing-import]
+                                        from PIL import Image
+                                        with Image.open(img_p) as im:
+                                            w, h = im.size
+                                            if w > 0:
+                                                width_style = f"width: {w}px;"
+                                    except Exception:
+                                        pass
+                                    
+                                if gallery_class == "expedia-gallery":
+                                    additional_sections_html += f'\n    <div class="grid-item-expedia"><img src="{file_url}" class="gallery-img" /></div>'
+                                else:
+                                    additional_sections_html += f'\n    <img src="{file_url}" class="gallery-img" style="{width_style}" />'
+                        additional_sections_html += '\n</div>'
                 
                 additional_sections_html += """
                 </div>
@@ -735,14 +848,23 @@ class FileExporter:
     <meta charset="UTF-8">
     <title>Revinn - Lâmina de Performance Mensal</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Poppins:wght@400;600;700&display=swap');
+
         @page {{
             size: A4;
             margin: 15mm 12mm;
+            background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='1000' viewBox='0 0 800 1000'><text fill='rgba(240,240,240,0.45)' font-family='Inter, sans-serif' font-size='85' font-weight='bold' x='100' y='600' transform='rotate(-45 300 600)'>Revinn</text></svg>");
             @bottom-right {{
                 content: "Pág. " counter(page);
-                font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                font-family: 'Inter', sans-serif;
                 font-size: 8pt;
                 color: #7f8c8d;
+            }}
+        }}
+
+        @page :first {{
+            @bottom-right {{
+                content: "";
             }}
         }}
         
@@ -751,13 +873,115 @@ class FileExporter:
         }}
 
         body {{
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-family: 'Inter', sans-serif;
             color: #2c3e50;
             line-height: 1.4;
             margin: 0;
             padding: 0;
             background-color: #ffffff;
             font-size: 10pt;
+        }}
+        
+        /* Cover Page Styling */
+        .cover-page {{
+            height: 92%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20mm 10mm;
+            page-break-after: always;
+            box-sizing: border-box;
+        }}
+        
+        .cover-logo {{
+            text-align: center;
+            margin-bottom: 30px;
+        }}
+        
+        .cover-brand-title {{
+            font-family: 'Poppins', sans-serif;
+            font-size: 32pt;
+            font-weight: bold;
+            color: #005151;
+            text-transform: lowercase;
+            display: block;
+            letter-spacing: -1px;
+        }}
+        
+        .cover-brand-subtitle {{
+            font-family: 'Inter', sans-serif;
+            font-size: 10pt;
+            font-weight: bold;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }}
+        
+        .cover-main {{
+            text-align: center;
+            margin-top: 80px;
+            margin-bottom: 80px;
+        }}
+        
+        .cover-hotel-name {{
+            font-family: 'Poppins', sans-serif;
+            font-size: 26pt;
+            color: #005151;
+            text-transform: uppercase;
+            font-weight: 700;
+            margin: 0 0 10px 0;
+            letter-spacing: 0.5px;
+        }}
+        
+        .cover-doc-title {{
+            font-family: 'Poppins', sans-serif;
+            font-size: 14pt;
+            color: #2c3e50;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin: 0 0 5px 0;
+            letter-spacing: 1px;
+        }}
+        
+        .cover-doc-reference {{
+            font-family: 'Inter', sans-serif;
+            font-size: 12pt;
+            color: #7f8c8d;
+            font-weight: 400;
+            margin: 0;
+        }}
+        
+        .cover-footer {{
+            margin-top: auto;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 20px;
+            text-align: center;
+        }}
+        
+        .cover-privacy-title {{
+            font-family: 'Poppins', sans-serif;
+            font-size: 8pt;
+            font-weight: 700;
+            color: #005151;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }}
+        
+        .cover-privacy-text {{
+            font-family: 'Inter', sans-serif;
+            font-size: 7.5pt;
+            color: #7f8c8d;
+            line-height: 1.5;
+            max-width: 500px;
+            margin: 0 auto 20px auto;
+            text-align: justify;
+        }}
+        
+        .cover-date {{
+            font-family: 'Inter', sans-serif;
+            font-size: 9pt;
+            color: #2c3e50;
+            margin: 0;
         }}
         
         /* Estrutura de colunas via display: table para compatibilidade WeasyPrint */
@@ -775,21 +999,23 @@ class FileExporter:
         
         /* Cabeçalho Corporativo */
         .header-container {{
-            border-bottom: 2px solid #008080;
+            border-bottom: 2px solid #159F92;
             padding-bottom: 8px;
             margin-bottom: 20px;
         }}
         
         .brand-title {{
+            font-family: 'Poppins', sans-serif;
             font-size: 22pt;
             font-weight: bold;
-            color: #008080;
+            color: #005151;
             text-transform: lowercase;
             margin: 0;
             letter-spacing: -0.5px;
         }}
         
         .brand-subtitle {{
+            font-family: 'Inter', sans-serif;
             font-size: 8pt;
             font-weight: bold;
             color: #7f8c8d;
@@ -803,14 +1029,16 @@ class FileExporter:
         }}
         
         .doc-info h1 {{
+            font-family: 'Poppins', sans-serif;
             font-size: 14pt;
             margin: 0;
-            color: #2c3e50;
+            color: #005151;
             text-transform: uppercase;
             font-weight: 700;
         }}
         
         .doc-info p {{
+            font-family: 'Inter', sans-serif;
             font-size: 9pt;
             margin: 3px 0 0 0;
             color: #7f8c8d;
@@ -831,15 +1059,18 @@ class FileExporter:
         
         .kpi-card {{
             display: table-cell;
-            background: #f8f9fa;
+            background: #ffffff;
             border: 1px solid #e2e8f0;
-            padding: 10px;
+            border-top: 3px solid #159F92;
+            padding: 12px 10px;
             border-radius: 4px;
             text-align: left;
-            vertical-align: middle;
+            vertical-align: top;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }}
         
         .kpi-label {{
+            font-family: 'Inter', sans-serif;
             font-size: 7.5pt;
             color: #7f8c8d;
             text-transform: uppercase;
@@ -849,29 +1080,56 @@ class FileExporter:
         }}
         
         .kpi-value {{
+            font-family: 'Poppins', sans-serif;
             font-size: 14pt;
             font-weight: 700;
-            color: #2c3e50;
+            color: #005151;
             margin: 0;
         }}
         
         .kpi-sub {{
+            font-family: 'Inter', sans-serif;
             font-size: 7.5pt;
             font-weight: 600;
             margin-top: 3px;
             display: block;
         }}
         
+        .kpi-separator {{
+            border: 0;
+            border-top: 1px solid #e2e8f0;
+            margin: 10px 0 8px 0;
+        }}
+        
+        .kpi-past-label {{
+            font-family: 'Inter', sans-serif;
+            font-size: 7pt;
+            color: #a0aec0;
+            text-transform: uppercase;
+            font-weight: 700;
+            margin-bottom: 2px;
+            display: block;
+        }}
+        
+        .kpi-past-value {{
+            font-family: 'Poppins', sans-serif;
+            font-size: 11pt;
+            font-weight: 600;
+            color: #718096;
+            margin: 0;
+        }}
+        
         .negative {{ color: #c0392b; }}
-        .positive {{ color: #27ae60; }}
+        .positive {{ color: #159F92; }}
 
         /* Headers de Seção */
         .section-header {{
+            font-family: 'Poppins', sans-serif;
             font-size: 10pt;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             color: #ffffff;
-            background-color: #2c3e50;
+            background-color: #005151;
             padding: 5px 8px;
             margin-top: 18px;
             margin-bottom: 10px;
@@ -881,24 +1139,119 @@ class FileExporter:
             page-break-after: avoid;
         }}
         
+        /* Galeria de imagens adicionais */
+        .image-gallery {{
+            display: block;
+            width: 100%;
+            margin-top: 15px;
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+            text-align: center;
+        }}
+        
+        .gallery-img {{
+            display: inline-block;
+            max-width: 100%;
+            height: auto;
+            margin: 5px 2px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 4px;
+            background: #ffffff;
+            vertical-align: top;
+            box-sizing: border-box;
+        }}
+        
+        /* Expedia Grid Layout (2 rows, 1 col) */
+        .expedia-gallery {{
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+            width: 100%;
+            margin-top: 15px;
+        }}
+        
+        .expedia-gallery .grid-item-expedia {{
+            width: 100%;
+            text-align: center;
+        }}
+        
+        .expedia-gallery .gallery-img {{
+            max-width: 100%;
+            max-height: 380px;
+            width: 100%;
+            margin: 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 4px;
+            background: #ffffff;
+            object-fit: contain;
+            box-sizing: border-box;
+        }}
+        
+        /* Booking Layout Table (Row 1 span 2, Row 2 split 70% and 30% - Highly compatible and robust) */
+        .booking-table-layout {{
+            width: 100% !important;
+            height: 100% !important;
+            border-collapse: collapse !important;
+            border: none !important;
+            margin-top: 15px !important;
+            margin-bottom: 0 !important;
+            table-layout: fixed !important;
+        }}
+        
+        .booking-table-layout td {{
+            border: none !important;
+            background: none !important;
+            padding: 0 !important;
+            text-align: center !important;
+            vertical-align: top !important;
+        }}
+        
+        .gallery-img-booking-1 {{
+            max-width: 100%;
+            width: 100%;
+            display: inline-block;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 1px;
+            background: #ffffff;
+            object-fit: contain;
+            box-sizing: border-box;
+        }}
+        
+        .gallery-img-booking-2,
+        .gallery-img-booking-3 {{
+            max-width: 100%;
+            width: 100%;
+            height: 380px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 4px;
+            background: #ffffff;
+            object-fit: contain;
+            box-sizing: border-box;
+        }}
+        
         /* Tabelas Financeiras */
         table {{
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 15px;
             font-size: 8.5pt;
+            font-family: 'Inter', sans-serif;
             page-break-inside: avoid;
         }}
         
         th {{
+            font-family: 'Poppins', sans-serif;
             font-weight: 700;
             text-transform: uppercase;
             font-size: 8pt;
-            color: #34495e;
-            border-bottom: 2px solid #2c3e50;
-            padding: 5px 6px;
+            color: #ffffff;
+            background-color: #159F92;
+            padding: 6px 8px;
             text-align: right;
-            background-color: #fcfcfc;
         }}
         
         th:first-child, td:first-child {{
@@ -906,57 +1259,61 @@ class FileExporter:
         }}
         
         td {{
-            padding: 5px 6px;
+            font-family: 'Inter', sans-serif;
+            padding: 5px 8px;
             border-bottom: 1px solid #e2e8f0;
             text-align: right;
             color: #2c3e50;
         }}
+
+        tr:nth-child(even) td {{
+            background-color: #f8f9fa;
+        }}
         
         .total-row td {{
             font-weight: 700;
-            background-color: #f8f9fa;
-            border-top: 1px solid #2c3e50;
-            border-bottom: 2px solid #2c3e50;
+            background-color: #e8e8e8 !important;
+            border-top: 1.5px solid #005151;
+            border-bottom: 2px solid #005151;
         }}
     </style>
 </head>
 <body>
 
+<div class="cover-page">
+    <div class="cover-logo">
+        <img src="{logo_url}" style="height: 180px; width: auto; display: block; margin: 0 auto;" />
+    </div>
+    
+    <div class="cover-main">
+        <h1 class="cover-hotel-name">{property_name}</h1>
+        <h2 class="cover-doc-title">Lâmina de Performance Mensal</h2>
+        <h3 class="cover-doc-reference">{reference}</h3>
+    </div>
+    
+    <div class="cover-footer">
+        <p class="cover-privacy-title">TERMO DE CONFIDENCIALIDADE E PRIVACIDADE</p>
+        <p class="cover-privacy-text">
+            Este documento contém informações comerciais confidenciais e proprietárias da <strong>Revinn Estratégias</strong> e do <strong>{property_name}</strong>. 
+            O conteúdo aqui apresentado é destinado exclusivamente para uso interno e não deve ser reproduzido, compartilhado ou distribuído a terceiros sem a autorização prévia por escrito.
+        </p>
+        <p class="cover-date">São Paulo, 2026</p>
+    </div>
+</div>
+
 <div class="container">
 
     <div class="table-row header-container">
-        <div class="table-cell" style="width: 50%;">
-            <div class="brand-title">revinn</div>
-            <div class="brand-subtitle">estratégias de receita</div>
+        <div class="table-cell" style="width: 50%; vertical-align: middle;">
+            <img src="{logo_url}" style="height: 100px; width: auto;" />
         </div>
-        <div class="table-cell doc-info" style="width: 50%;">
+        <div class="table-cell doc-info" style="width: 50%; vertical-align: middle;">
             <h1>{property_name}</h1>
             <p>Lâmina de Performance Mensal &bull; {reference}</p>
         </div>
     </div>
 
-    <div class="kpi-container">
-        <div class="kpi-card">
-            <span class="kpi-label">Receita Líquida</span>
-            <p class="kpi-value">{receita_val}</p>
-            <span class="kpi-sub {receita_var_class}">{receita_var}</span>
-        </div>
-        <div class="kpi-card">
-            <span class="kpi-label">Taxa de Ocupação</span>
-            <p class="kpi-value">{ocupacao_val}</p>
-            <span class="kpi-sub {ocupacao_var_class}">{ocupacao_var}</span>
-        </div>
-        <div class="kpi-card">
-            <span class="kpi-label">Diária Média (ADR)</span>
-            <p class="kpi-value">{adr_val}</p>
-            <span class="kpi-sub {adr_var_class}">{adr_var}</span>
-        </div>
-        <div class="kpi-card">
-            <span class="kpi-label">RevPAR Consolidado</span>
-            <p class="kpi-value">{revpar_val}</p>
-            <span class="kpi-sub {revpar_var_class}">{revpar_var}</span>
-        </div>
-    </div>
+    {kpi_cards_html}
 
     <div class="section-header">Desempenho por Categoria de Acomodação (Check-outs)</div>
     <table>

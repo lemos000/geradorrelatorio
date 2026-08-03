@@ -9,7 +9,7 @@ from src.infrastructure.exporters import FileExporter
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Auditoria Hoteleira BI - Gerador de Relatórios")
+        self.title("Revinn Estratégias - Gerador de Relatórios")
         self.geometry("700x650")
         
         # Tema e Estilo
@@ -32,10 +32,10 @@ class App(ctk.CTk):
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
         header_frame.pack(pady=(20, 10), padx=30, fill="x")
         
-        ctk.CTkLabel(header_frame, text="Auditoria Hoteleira BI", font=("Roboto", 28, "bold")).pack(side="left")
+        ctk.CTkLabel(header_frame, text="Auditoria Hoteleira BI", font=("Poppins", 28, "bold")).pack(side="left")
         
         # Mode Toggle - Heurística #7: Flexibilidade e Eficiência
-        self.mode_switch = ctk.CTkSwitch(header_frame, text="Modo Escuro", command=self.toggle_appearance)
+        self.mode_switch = ctk.CTkSwitch(header_frame, text="Modo Escuro", command=self.toggle_appearance, font=("Inter", 12))
         self.mode_switch.select()
         self.mode_switch.pack(side="right")
 
@@ -53,26 +53,27 @@ class App(ctk.CTk):
         # Seção de Configurações - Heurística #2: Correspondência entre o sistema e o mundo real
         self._create_section_label(container, "Informações do Relatório")
         
-        self.hotel_entry = ctk.CTkEntry(container, placeholder_text="Nome da Propriedade (ex: Hotel Central)")
+        self.hotel_entry = ctk.CTkEntry(container, placeholder_text="Nome da Propriedade (ex: Hotel Central)", font=("Inter", 12))
         self.hotel_entry.pack(pady=5, padx=10, fill="x")
 
-        self.ref_entry = ctk.CTkEntry(container, placeholder_text="Referência Temporal (ex: Maio 2026)")
+        self.ref_entry = ctk.CTkEntry(container, placeholder_text="Referência Temporal (ex: Maio 2026)", font=("Inter", 12))
         self.ref_entry.pack(pady=5, padx=10, fill="x")
 
-        # Seção de Seções Adicionais
-        self._create_section_label(container, "Seções Adicionais (Opcional)")
-        self.sections_container = ctk.CTkFrame(container, fg_color="transparent")
-        self.sections_container.pack(pady=5, padx=10, fill="x")
-        self.additional_sections = []
-        self.add_section_btn = ctk.CTkButton(container, text="(+) Adicionar Seção", command=self.add_additional_section,
-                                             fg_color="#1f6aa5", hover_color="#144870")
-        self.add_section_btn.pack(pady=10, padx=10, fill="x")
+        self.month_var = ctk.StringVar(value="Maio")
+        self.month_select = ctk.CTkComboBox(container, values=[
+            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+        ], variable=self.month_var, font=("Inter", 12))
+        self.month_select.pack(pady=5, padx=10, fill="x")
+
+        # Seções Estáticas Booking e Expedia
+        self.create_static_sections(container)
 
         # Destino - Heurística #5: Prevenção de erros
         self._create_section_label(container, "Destino e Saída")
         self.out_entry = self._create_file_field(container, "Pasta Destino *", self.select_output_folder, "Onde os relatórios serão salvos")
         
-        self.name_entry = ctk.CTkEntry(container, placeholder_text="Nome do Arquivo Final *")
+        self.name_entry = ctk.CTkEntry(container, placeholder_text="Nome do Arquivo Final *", font=("Inter", 12))
         self.name_entry.insert(0, "Relatorio_Auditoria")
         self.name_entry.pack(pady=5, padx=10, fill="x")
 
@@ -81,12 +82,12 @@ class App(ctk.CTk):
         self.progress_bar.pack(pady=(10, 5), padx=30, fill="x")
         self.progress_bar.set(0)
         
-        self.status_label = ctk.CTkLabel(self, text="Pronto para iniciar", font=("Roboto", 12))
+        self.status_label = ctk.CTkLabel(self, text="Pronto para iniciar", font=("Inter", 12))
         self.status_label.pack(pady=(0, 10))
 
         # Ações
-        self.process_btn = ctk.CTkButton(self, text="GERAR RELATÓRIOS", font=("Roboto", 16, "bold"), 
-                                        command=self.start_processing, height=50, fg_color="#1f6aa5", hover_color="#144870")
+        self.process_btn = ctk.CTkButton(self, text="GERAR RELATÓRIOS", font=("Inter", 16, "bold"), 
+                                        command=self.start_processing, height=50, fg_color="#159F92", hover_color="#005151")
         self.process_btn.pack(pady=(0, 20), padx=30, fill="x")
 
         # Log Expansível - Heurística #9: Ajuda os usuários a reconhecerem e recuperarem-se de erros
@@ -94,19 +95,19 @@ class App(ctk.CTk):
         self.log_text.pack(pady=(0, 20), padx=30, fill="x")
 
     def _create_section_label(self, parent, text):
-        ctk.CTkLabel(parent, text=text, font=("Roboto", 14, "bold"), text_color="#1f6aa5").pack(pady=(15, 5), padx=10, anchor="w")
+        ctk.CTkLabel(parent, text=text, font=("Inter", 14, "bold"), text_color="#159F92").pack(pady=(15, 5), padx=10, anchor="w")
 
     def _create_file_field(self, parent, label_text, command, tooltip):
         frame = ctk.CTkFrame(parent, fg_color="transparent")
         frame.pack(pady=2, padx=5, fill="x")
         
-        lbl = ctk.CTkLabel(frame, text=label_text, width=120, anchor="w")
+        lbl = ctk.CTkLabel(frame, text=label_text, width=120, anchor="w", font=("Inter", 12))
         lbl.pack(side="left", padx=5)
         
-        entry = ctk.CTkEntry(frame, placeholder_text=tooltip)
+        entry = ctk.CTkEntry(frame, placeholder_text=tooltip, font=("Inter", 12))
         entry.pack(side="left", padx=5, expand=True, fill="x")
         
-        ctk.CTkButton(frame, text="Procurar", width=80, command=command).pack(side="left", padx=2)
+        ctk.CTkButton(frame, text="Procurar", width=80, command=command, font=("Inter", 12), fg_color="#159F92", hover_color="#005151").pack(side="left", padx=2)
         return entry
 
     def toggle_appearance(self):
@@ -138,6 +139,7 @@ class App(ctk.CTk):
             img_path = sec["image_entry"].get().strip()
             if title or desc or img_path:
                 additional_sec_data.append({
+                    "key": sec.get("key", ""),
                     "title": title,
                     "description": desc,
                     "image_path": img_path
@@ -150,7 +152,8 @@ class App(ctk.CTk):
             self.out_entry.get().strip(), 
             self.name_entry.get().strip(),
             self.hotel_entry.get().strip(),
-            self.ref_entry.get().strip()
+            self.ref_entry.get().strip(),
+            self.month_var.get().strip()
         )
         
         # Heurística #5 e #9: Prevenção e Recuperação de erros (Aviso específico)
@@ -172,7 +175,7 @@ class App(ctk.CTk):
         
         threading.Thread(target=self.process, args=args + (additional_sec_data,), daemon=True).start()
 
-    def process(self, f1, f2, p_file, out, name, hotel, reference, additional_sections):
+    def process(self, f1, f2, p_file, out, name, hotel, reference, selected_month, additional_sections):
         try:
             self.log("Carregando bases de dados...")
             df_co = self.data_proc.process_audit_data(f1)
@@ -189,7 +192,7 @@ class App(ctk.CTk):
             evol_df, closing_df, charts = None, None, []
             if p_file and os.path.exists(p_file):
                 self.log("Analisando Pickup e buscando planilhas válidas...")
-                evol_df, closing_df = self.pickup_proc.process_pickup_evolution(p_file)
+                evol_df, closing_df = self.pickup_proc.process_pickup_evolution(p_file, selected_month)
                 
                 if evol_df is not None and not evol_df.empty:
                     self.log(f"Pickup: {len(evol_df)} dias de evolução encontrados.")
@@ -239,68 +242,57 @@ class App(ctk.CTk):
         finally:
             self.process_btn.configure(state="normal", text="GERAR RELATÓRIOS")
 
-    def add_additional_section(self):
-        index = len(self.additional_sections) + 1
+    def create_static_sections(self, container):
+        self._create_section_label(container, "Canais: Análises de Performance")
+        self.sections_container = ctk.CTkFrame(container, fg_color="transparent")
+        self.sections_container.pack(pady=5, padx=10, fill="x")
+        self.additional_sections = []
         
-        card = ctk.CTkFrame(self.sections_container, border_width=1, border_color="#1f6aa5")
+        # 1. Seção Booking
+        self._add_static_section("Booking", "Notas & Ranking (Last 90) | Booking.com")
+        
+        # 2. Seção Expedia
+        self._add_static_section("Expedia", "Performance (Last 90) | Expedia")
+
+    def _add_static_section(self, label_text, default_title):
+        card = ctk.CTkFrame(self.sections_container, border_width=1, border_color="#159F92")
         card.pack(pady=10, padx=5, fill="x")
         
         header_frame = ctk.CTkFrame(card, fg_color="transparent")
         header_frame.pack(pady=5, padx=10, fill="x")
         
-        lbl = ctk.CTkLabel(header_frame, text=f"Seção Adicional #{index}", font=("Roboto", 12, "bold"))
+        lbl = ctk.CTkLabel(header_frame, text=f"Seção: {label_text}", font=("Inter", 12, "bold"))
         lbl.pack(side="left")
         
-        remove_btn = ctk.CTkButton(header_frame, text="Remover (X)", width=80, height=22, fg_color="#c0392b", hover_color="#962d22",
-                                   command=lambda c=card: self.remove_additional_section(c))
-        remove_btn.pack(side="right")
-        
-        title_entry = ctk.CTkEntry(card, placeholder_text="Título da Seção (ex: Observações Importantes)")
+        title_entry = ctk.CTkEntry(card, placeholder_text="Título da Seção", font=("Inter", 12))
+        title_entry.insert(0, default_title)
         title_entry.pack(pady=5, padx=10, fill="x")
         
-        lbl_desc = ctk.CTkLabel(card, text="Descrição / Conteúdo:", font=("Roboto", 10))
+        lbl_desc = ctk.CTkLabel(card, text="Descrição / Conteúdo:", font=("Inter", 10))
         lbl_desc.pack(anchor="w", padx=10)
         
-        desc_textbox = ctk.CTkTextbox(card, height=70)
+        desc_textbox = ctk.CTkTextbox(card, height=70, font=("Inter", 12))
         desc_textbox.pack(pady=(0, 5), padx=10, fill="x")
         
         img_frame = ctk.CTkFrame(card, fg_color="transparent")
         img_frame.pack(pady=5, padx=10, fill="x")
         
-        img_entry = ctk.CTkEntry(img_frame, placeholder_text="Selecione uma imagem para anexar (opcional)")
+        img_entry = ctk.CTkEntry(img_frame, placeholder_text="Selecione imagens para anexar (opcional, separadas por ';')", font=("Inter", 12))
         img_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
         
         def seek_image(ent=img_entry):
-            fpath = filedialog.askopenfilename(filetypes=[("Imagens", "*.png *.jpg *.jpeg *.gif *.bmp")])
-            if fpath:
+            fpaths = filedialog.askopenfilenames(filetypes=[("Imagens", "*.png *.jpg *.jpeg *.gif *.bmp")])
+            if fpaths:
                 ent.delete(0, "end")
-                ent.insert(0, fpath)
+                ent.insert(0, "; ".join(fpaths))
                 
-        seek_btn = ctk.CTkButton(img_frame, text="Procurar", width=80, command=seek_image)
+        seek_btn = ctk.CTkButton(img_frame, text="Procurar", width=80, command=seek_image, font=("Inter", 12), fg_color="#159F92", hover_color="#005151")
         seek_btn.pack(side="right")
         
         self.additional_sections.append({
+            "key": label_text.lower(),
             "frame": card,
             "title_entry": title_entry,
             "desc_textbox": desc_textbox,
             "image_entry": img_entry
         })
-        
-        self.update_section_labels()
-
-    def remove_additional_section(self, card_to_remove):
-        for sec in self.additional_sections:
-            if sec["frame"] == card_to_remove:
-                sec["frame"].destroy()
-                self.additional_sections.remove(sec)
-                break
-        self.update_section_labels()
-
-    def update_section_labels(self):
-        for i, sec in enumerate(self.additional_sections):
-            try:
-                header = sec["frame"].winfo_children()[0]
-                label = header.winfo_children()[0]
-                label.configure(text=f"Seção Adicional #{i+1}")
-            except Exception:
-                pass

@@ -102,82 +102,118 @@ class DataProcessor:
 class PickupProcessor:
     """Classe responsável pelo processamento de dados de Pickup (Excel)."""
     
-    EVOL_MAP = {
-        'date.present.record_date': 'Data',
-        'kpis_occupancy%.past.after.value': 'Ocupação Passado',
-        'kpis_occupancy%.present.after.value': 'Ocupação Presente',
-        'kpis_adr%.past.after.value': 'ADR Passado',
-        'kpis_adr%.present.after.value': 'ADR Presente',
-        'kpis_revenue.past.after.value': 'Receita Passado',
-        'kpis_revenue.present.after.value': 'Receita Presente'
-    }
-
-    CLOSING_MAP = {
-        'kpis_occupancy%.past.after.value': 'Ocupação Passado',
-        'kpis_occupancy%.present.after.value': 'Ocupação Presente',
-        'kpis_adr%.past.after.value': 'ADR Passado',
-        'kpis_adr%.present.after.value': 'ADR Presente',
-        'kpis_revenue.past.after.value': 'Receita Passado',
-        'kpis_revenue.present.after.value': 'Receita Presente'
-    }
-
-    def process_pickup_evolution(self, file_path: str) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def process_pickup_evolution(self, file_path: str, selected_month: str) -> Tuple[pd.DataFrame, pd.DataFrame]:
         if not os.path.exists(file_path):
             return None, None
         
+        month_map = {
+            "Janeiro": 1, "Fevereiro": 2, "Março": 3, "Abril": 4, "Maio": 5, "Junho": 6,
+            "Julho": 7, "Agosto": 8, "Setembro": 9, "Outubro": 10, "Novembro": 11, "Dezembro": 12
+        }
+        month_num = month_map.get(selected_month, 5)
+        
         try:
             xl = pd.ExcelFile(file_path)
-            valid_sheets = []
-            for sheet_name in xl.sheet_names:
-                df_tmp = xl.parse(sheet_name)
-                if not df_tmp.empty and len(df_tmp.columns) > 0:
-                    valid_sheets.append(df_tmp)
             
-            if len(valid_sheets) == 0:
-                return None, None
-            
-            # Evolution: busca a primeira planilha que tenha a coluna de Data de Registro
-            df_evol_raw = None
-            for df in valid_sheets:
-                if 'date.present.record_date' in df.columns:
-                    df_evol_raw = df
+            # 1. Encontrar planilha de evolução
+            evol_sheet = None
+            for name in xl.sheet_names:
+                if 'evolution_table' in name:
+                    evol_sheet = name
                     break
+            if not evol_sheet:
+                evol_sheet = xl.sheet_names[0]
+                
+            df_evol_raw = xl.parse(evol_sheet)
             
-            if df_evol_raw is None:
-                df_evol_raw = valid_sheets[0]
-
-            # Closing: busca a última planilha ou uma que tenha os KPIs e não seja a de evolução
-            df_closing_raw = valid_sheets[-1]
-            for df in valid_sheets:
-                if 'kpis_occupancy%.present.after.value' in df.columns and not df.equals(df_evol_raw):
-                    df_closing_raw = df
+            # 2. Encontrar planilha de pickup (fechamento)
+            pickup_sheet = None
+            for name in xl.sheet_names:
+                if 'pickup_table' in name and not name.endswith('_piv'):
+                    pickup_sheet = name
                     break
-
+            if not pickup_sheet:
+                pickup_sheet = xl.sheet_names[-1]
+                
+            df_closing_raw = xl.parse(pickup_sheet)
+            
         except Exception as e:
             print(f"Erro ao ler Excel {file_path}: {e}")
             return None, None
+            
+        # --- PROCESSAR EVOLUÇÃO ---
+        # Filtrar segment == vazio (NaN ou string em branco)
+        if 'segment' in df_evol_raw.columns:
+            df_evol_raw = df_evol_raw[df_evol_raw['segment'].isna() | (df_evol_raw['segment'].astype(str).str.strip() == '')]
+            
+        # Colunas mapeadas
+        evol_cols = {
+            'date.present.record_date': 'Data',
+            'kpis_occupancy%.past.after.value': 'Ocupação Passado',
+            'kpis_occupancy%.present.after.value': 'Ocupação Presente',
+            'kpis_adr%.past.after.value': 'ADR Passado',
+            'kpis_adr%.present.after.value': 'ADR Presente',
+            'kpis_revpar%.past.after.value': 'RevPAR Passado',
+            'kpis_revpar%.present.after.value': 'RevPAR Presente'
+        }
         
-        # Evolution: Processar e Agrupar por Data
-        df_evol = df_evol_raw[[c for c in self.EVOL_MAP.keys() if c in df_evol_raw.columns]].rename(columns=self.EVOL_MAP)
-        for col in self.EVOL_MAP.values():
-            if col not in df_evol.columns: df_evol[col] = 0.0
+        # Filtra as colunas existentes no raw
+        existing_evol_cols = {raw_col: new_col for raw_col, new_col in evol_cols.items() if raw_col in df_evol_raw.columns}
+        df_evol = df_evol_raw[list(existing_evol_cols.keys())].rename(columns=existing_evol_cols)
         
+        # Garantir colunas
+        for col in evol_cols.values():
+            if col not in df_evol.columns:
+                df_evol[col] = 0.0
+                
         df_evol['Data'] = pd.to_datetime(df_evol['Data'], errors='coerce')
         df_evol = df_evol.dropna(subset=['Data'])
         
-        if df_evol.empty:
-            return None, None
-            
-        # Agregação: Soma Receita, Média para Ocupação e ADR
-        agg_rules = {col: ('sum' if 'Receita' in col else 'mean') for col in df_evol.columns if col != 'Data'}
-        df_evol = df_evol.groupby('Data').agg(agg_rules).reset_index().sort_values('Data')
-
-        # Closing: Processar e Consolidar
-        df_closing = df_closing_raw[[c for c in self.CLOSING_MAP.keys() if c in df_closing_raw.columns]].rename(columns=self.CLOSING_MAP)
-        for col in self.CLOSING_MAP.values():
-            if col not in df_closing.columns: df_closing[col] = 0.0
-            
-        agg_rules_closing = {col: ('sum' if 'Receita' in col else 'mean') for col in df_closing.columns}
-        df_closing_final = df_closing.agg(agg_rules_closing).to_frame().T
+        # Filtrar evolução pelo mês selecionado
+        df_evol = df_evol[df_evol['Data'].dt.month == month_num]
         
+        if not df_evol.empty:
+            agg_rules = {col: 'mean' for col in df_evol.columns if col != 'Data'}
+            df_evol = df_evol.groupby('Data').agg(agg_rules).reset_index().sort_values('Data')
+        else:
+            df_evol = pd.DataFrame(columns=evol_cols.values())
+        
+        # --- PROCESSAR FECHAMENTO ---
+        if 'segment' in df_closing_raw.columns:
+            df_closing_raw = df_closing_raw[df_closing_raw['segment'].isna() | (df_closing_raw['segment'].astype(str).str.strip() == '')]
+            
+        closing_cols = {
+            'date.present.calendar_date': 'DataFechamento',
+            'kpis_occupancy%.past.after.value': 'Ocupação Passado',
+            'kpis_occupancy%.present.after.value': 'Ocupação Presente',
+            'kpis_adr%.past.after.value': 'ADR Passado',
+            'kpis_adr%.present.after.value': 'ADR Presente',
+            'kpis_revenue.past.after.value': 'Receita Passado',
+            'kpis_revenue.present.after.value': 'Receita Presente',
+            'kpis_revpar%.past.after.value': 'RevPAR Passado',
+            'kpis_revpar%.present.after.value': 'RevPAR Presente'
+        }
+        
+        existing_closing_cols = {raw_col: new_col for raw_col, new_col in closing_cols.items() if raw_col in df_closing_raw.columns}
+        df_closing = df_closing_raw[list(existing_closing_cols.keys())].rename(columns=existing_closing_cols)
+        
+        # Garantir colunas
+        for col in closing_cols.values():
+            if col not in df_closing.columns:
+                df_closing[col] = 0.0
+                
+        df_closing['DataFechamento'] = pd.to_datetime(df_closing['DataFechamento'], errors='coerce')
+        
+        # Filtrar pelo mês selecionado
+        df_closing_month = df_closing[df_closing['DataFechamento'].dt.month == month_num]
+        
+        if df_closing_month.empty:
+            # Fallback se não achar exatamente o mês: faz média/soma de todo o período do closing
+            agg_rules_closing = {col: ('sum' if 'Receita' in col else 'mean') for col in df_closing.columns if col != 'DataFechamento'}
+            df_closing_final = df_closing.drop(columns=['DataFechamento']).agg(agg_rules_closing).to_frame().T
+        else:
+            df_closing_final = df_closing_month.iloc[[0]].copy()
+            if 'DataFechamento' in df_closing_final.columns:
+                df_closing_final = df_closing_final.drop(columns=['DataFechamento'])
+                
         return df_evol, df_closing_final

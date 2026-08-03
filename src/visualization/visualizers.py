@@ -41,7 +41,7 @@ class ChartGenerator:
             ax.annotate(f"{df_evol['Ocupação Presente'].iloc[i]:.1f}%", 
                         (days[i], df_evol['Ocupação Presente'].iloc[i]),
                         textcoords="offset points", xytext=(0,10), ha='center', 
-                        fontsize=9, color='#000000', fontweight='bold')
+                        fontsize=9, color='#005151', fontweight='bold')
 
         ax.set_title('Evolução Diária de Ocupação (%) - Ano vs Ano', fontsize=12, weight='bold')
         ax.legend()
@@ -122,6 +122,7 @@ class TableGenerator:
         rel1.columns = ['Categoria', 'Receita', 'LOS_Total', 'LOS_Media']
         rel1['ADR'] = (rel1['Receita'] / rel1['LOS_Total']).fillna(0)
         rel1 = rel1.rename(columns={'LOS_Media': 'LOS'})[['Categoria', 'ADR', 'LOS', 'Receita']]
+        rel1 = rel1.sort_values(by='Receita', ascending=False)
 
         # Relatório 2 & 3: Por Canal
         def group_by_canal(df):
