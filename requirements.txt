@@ -1,8 +1,0 @@
-customtkinter
-matplotlib
-python-pptx
-python-docx
-pandas
-openpyxl
-pyinstaller
-weasyprint
